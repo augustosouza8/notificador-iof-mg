@@ -1,4 +1,4 @@
-Você é um Arquiteto de Software sênior com experiência em Go, Python (Flask) e React. Este arquivo contém o código-fonte selecionado de um projeto chamado "automatiza-mg-ro-domg", que atualmente roda em Go no backend e React no frontend. Sua tarefa é me auxiliar na migração completa deste sistema para uma stack Python com Flask.
+Você é um Arquiteto de Software sênior com experiência em Go, Python (Flask). Este arquivo contém o código-fonte selecionado de um projeto chamado "automatiza-mg-ro-domg", que atualmente roda em Go no backend e React no frontend. Sua tarefa é me auxiliar na migração completa deste sistema para uma stack Python com Flask.
 
 Estrutura original do Diretorio:
 └── automatiza-mg-ro-domg/

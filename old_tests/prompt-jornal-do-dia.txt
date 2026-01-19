@@ -1,0 +1,55 @@
+Implementação de Alerta de E-mail com Link Dinâmico - Jornal Minas Gerais
+Objetivo
+Implementar uma funcionalidade no projeto Python/Flask para gerar links persistentes para o Diário Oficial de Minas Gerais e enviá-los por e-mail. O link deve apontar para a edição do dia da geração do alerta, garantindo que o usuário acesse a edição correta mesmo que abra o e-mail dias depois.
+
+Especificações Técnicas da URL
+O site jornalminasgerais.mg.gov.br utiliza um estado da aplicação codificado no parâmetro ?dados=. Para acessar uma data específica, a estrutura do JSON interno deve ser:
+
+JSON
+
+{
+  "dataPublicacaoSelecionada": "YYYY-MM-DDT03:00:00.000Z"
+}
+Requisitos de Codificação
+Data: Formato ISO 8601 (YYYY-MM-DD).
+
+Sufixo: Deve conter obrigatoriamente T03:00:00.000Z para compensação de fuso horário.
+
+URL Encoding: O JSON acima deve ser convertido para string e passar por um processo de URL Encode (ex: " vira %22).
+
+Implementação Requerida em Python
+O Agent deve implementar a seguinte lógica (ou similar):
+
+Python
+
+import urllib.parse
+from datetime import datetime
+
+def generate_daily_gazette_link(target_date=None):
+    """
+    Gera o link profundo para uma data específica do Diário Oficial.
+    """
+    if target_date is None:
+        target_date = datetime.now()
+    
+    date_str = target_date.strftime("%Y-%m-%d")
+    json_payload = f'{{"dataPublicacaoSelecionada":"{date_str}T03:00:00.000Z"}}'
+    
+    # Codificação segura para URL
+    encoded_payload = urllib.parse.quote(json_payload)
+    base_url = "https://www.jornalminasgerais.mg.gov.br/edicao-do-dia?dados="
+    
+    return base_url + encoded_payload
+Fluxo de Trabalho do Agent
+Integração: Adicionar a função de geração de link ao módulo de utilitários ou serviços de e-mail.
+
+Template de E-mail: Criar/Editar o template de e-mail (HTML) para incluir o link em um botão ou hiperlink claro.
+
+Exemplo: <a href="{{ link_gerado }}">Acessar Diário Oficial de {{ data_extenso }}</a>
+
+Lógica de Agendamento (Opcional): Sugerir ou implementar uma verificação para não enviar e-mails em dias sem publicação (domingos e segundas-feiras).
+
+Deploy no Render: Garantir que as variáveis de ambiente necessárias para o serviço de e-mail (SMTP_SERVER, EMAIL_USER, EMAIL_PASSWORD) estejam preparadas.
+
+Exemplo de Link Esperado
+Para o dia 16/12/2025, o link gerado deve ser: https://www.jornalminasgerais.mg.gov.br/edicao-do-dia?dados=%7B%22dataPublicacaoSelecionada%22%3A%222025-12-16T03%3A00%3A00.000Z%22%7D

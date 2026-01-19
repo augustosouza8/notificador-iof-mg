@@ -24,9 +24,30 @@ class Config:
     IOF_PASSWORD = os.getenv('IOF_PASSWORD', '')
     
     # Email
-    MAIL_SERVER = os.getenv('MAIL_SMTP_HOST', 'localhost')
-    MAIL_PORT = int(os.getenv('MAIL_SMTP_PORT', '1025'))
-    MAIL_USE_TLS = os.getenv('MAIL_SMTP_PORT', '1025') != '1025'
+    MAIL_SERVER = os.getenv('MAIL_SMTP_HOST', '')
+    MAIL_PORT = int(os.getenv('MAIL_SMTP_PORT', '587'))
+    # Para Gmail na porta 587, TLS é obrigatório
+    # Se MAIL_USE_TLS não estiver definido, inferir baseado na porta
+    mail_port_str = os.getenv('MAIL_SMTP_PORT', '587')
+    mail_host = os.getenv('MAIL_SMTP_HOST', '').lower()
+    
+    # Gmail sempre requer TLS na porta 587
+    if 'gmail' in mail_host and mail_port_str == '587':
+        default_use_tls = True
+    elif mail_port_str in ('587', '25'):
+        default_use_tls = True
+    elif mail_port_str == '465':
+        default_use_tls = False  # Porta 465 usa SSL, não TLS
+    else:
+        default_use_tls = False
+    
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', '').lower()
+    if MAIL_USE_TLS == '':
+        MAIL_USE_TLS = default_use_tls
+    else:
+        MAIL_USE_TLS = MAIL_USE_TLS == 'true'
+    
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
     MAIL_USERNAME = os.getenv('MAIL_SMTP_USER', '')
     MAIL_PASSWORD = os.getenv('MAIL_SMTP_PASSWORD', '')
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_FROM_ADDRESS', 'noreply@example.com')

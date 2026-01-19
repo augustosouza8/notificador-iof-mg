@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações - Notificador IOF MG{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+    <h2 class="text-3xl font-bold text-gray-800">Configurações de Busca</h2>
+    <a href="{{ url_for('web.create_config') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-md transition flex items-center">
+        <i class="fas fa-plus mr-2"></i>Nova Configuração
+    </a>
+</div>
+
+{% if configs %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for config in configs %}
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 {% if config.active %}border-green-500{% else %}border-gray-400{% endif %}">
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex-1">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">{{ config.label }}</h3>
+                    {% if config.description %}
+                    <p class="text-gray-600 text-sm mb-3">{{ config.description[:100] }}{% if config.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                </div>
+                <span class="px-2 py-1 text-xs rounded {% if config.active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {% if config.active %}Ativa{% else %}Inativa{% endif %}
+                </span>
+            </div>
+
+            <div class="space-y-2 mb-4 text-sm text-gray-600">
+                <div class="flex items-center">
+                    <i class="fas fa-search mr-2 text-blue-500"></i>
+                    <span><strong>{{ config.terms|length }}</strong> termo(s) de busca</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-envelope mr-2 text-blue-500"></i>
+                    <span><strong>{{ config.mail_to|length }}</strong> email(s) configurado(s)</span>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 mt-4">
+                <a href="{{ url_for('web.detail_config', config_id=config.id) }}" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded text-center text-sm transition">
+                    <i class="fas fa-eye mr-1"></i>Ver
+                </a>
+                <a href="{{ url_for('web.edit_config', config_id=config.id) }}" class="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded text-center text-sm transition">
+                    <i class="fas fa-edit mr-1"></i>Editar
+                </a>
+                <a href="{{ url_for('web.backtest_config', config_id=config.id) }}" class="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2 rounded text-center text-sm transition">
+                    <i class="fas fa-vial mr-1"></i>Testar
+                </a>
+                <form method="POST" action="{{ url_for('web.delete_config', config_id=config.id) }}" class="flex-1" onsubmit="return confirm('Tem certeza que deseja deletar esta configuração?');">
+                    <button type="submit" class="w-full bg-red-50 hover:bg-red-100 text-red-700 px-4 py-2 rounded text-sm transition">
+                        <i class="fas fa-trash mr-1"></i>Deletar
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+        <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600 mb-2">Nenhuma configuração encontrada</h3>
+        <p class="text-gray-500 mb-6">Comece criando sua primeira configuração de busca</p>
+        <a href="{{ url_for('web.create_config') }}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-md transition">
+            <i class="fas fa-plus mr-2"></i>Criar Primeira Configuração
+        </a>
+    </div>
+{% endif %}
+{% endblock %}

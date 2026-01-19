@@ -287,8 +287,8 @@ def test_highlights_structure(source: SearchSource, test_date: date):
 
 
 def test_page_urls(source: SearchSource, test_date: date):
-    """Teste: URLs das páginas."""
-    print_test("URLs das páginas")
+    """Teste: URLs das páginas no novo formato."""
+    print_test("URLs das páginas (novo formato)")
     try:
         search_terms = [Term(term="licitação", exact=False)]
         report = source.lookup(Trigger.BACKTEST, test_date, search_terms)
@@ -297,20 +297,41 @@ def test_page_urls(source: SearchSource, test_date: date):
             print_result(True, "Nenhum resultado para verificar URLs")
             return True
         
-        # Verificar URLs
+        # Verificar URLs no novo formato
+        expected_base = "https://www.jornalminasgerais.mg.gov.br/edicao-do-dia?dados="
+        
         for highlight in report.highlights[:3]:
             url = highlight.page_url
+            
+            # Verificar formato básico
             if not url.startswith('http'):
-                print_result(False, f"URL inválida: {url}")
+                print_result(False, f"URL inválida (não começa com http): {url}")
                 return False
-            if test_date.isoformat() not in url:
-                print_result(False, f"URL não contém data: {url}")
+            
+            # Verificar novo formato
+            if not url.startswith(expected_base):
+                print_result(False, f"URL não usa novo formato (esperado: {expected_base}...): {url}")
                 return False
-            if str(highlight.page) not in url:
-                print_result(False, f"URL não contém página: {url}")
+            
+            # Verificar que contém dados codificados
+            if 'dados=' not in url:
+                print_result(False, f"URL não contém parâmetro 'dados=': {url}")
+                return False
+            
+            # Verificar que a data está no formato correto (YYYY-MM-DD)
+            date_str = test_date.isoformat()
+            if date_str not in url:
+                print_result(False, f"URL não contém data {date_str}: {url}")
+                return False
+            
+            # Verificar que o número da página está presente (pode estar codificado)
+            # Como está codificado, vamos verificar se a URL tem conteúdo suficiente
+            if len(url) < len(expected_base) + 50:  # JSON codificado deve ter pelo menos 50 chars
+                print_result(False, f"URL parece muito curta (dados codificados ausentes?): {url}")
                 return False
         
-        print_result(True, f"URLs válidas para {len(report.highlights)} highlights")
+        print_result(True, f"URLs válidas no novo formato para {len(report.highlights)} highlights")
+        print(f"   📋 Exemplo de URL: {report.highlights[0].page_url[:100]}...")
         return True
     except Exception as e:
         print_result(False, f"Erro: {e}")
@@ -409,18 +430,27 @@ def test_fts5_search_with_email_notification(source: SearchSource, test_date: da
                     else:
                         content_checks.append((f"Termo '{term.term}'", False))
                 
+                # Verificar que contém link do jornal do dia
+                from mailer.notification import generate_daily_gazette_link
+                expected_gazette_link = generate_daily_gazette_link(test_date)
+                
+                if expected_gazette_link in email.text or expected_gazette_link in email.html:
+                    content_checks.append(("Link do jornal do dia", True))
+                else:
+                    content_checks.append(("Link do jornal do dia", False))
+                
+                # Verificar que o texto do link está presente
+                if "Acessar Diário Oficial" in email.text or "Acessar Diário Oficial" in email.html:
+                    content_checks.append(("Texto do link do jornal", True))
+                else:
+                    content_checks.append(("Texto do link do jornal", False))
+                
                 # Se houver highlights, verificar que estão no email
                 if report.highlights:
                     if "Página" in email.text or "página" in email.text.lower():
                         content_checks.append(("Informações de páginas", True))
                     else:
                         content_checks.append(("Informações de páginas", False))
-                    
-                    # Verificar que URLs estão no email
-                    if "http" in email.text or "http" in email.html:
-                        content_checks.append(("URLs das páginas", True))
-                    else:
-                        content_checks.append(("URLs das páginas", False))
                 else:
                     # Se não houver highlights, verificar que o email informa isso
                     if "0" in email.text or "nenhuma" in email.text.lower() or "nenhum" in email.text.lower():

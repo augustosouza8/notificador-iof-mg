@@ -6,6 +6,11 @@
 </head>
 <body>
     <h2>Novas notificações - Diário Oficial</h2>
+    <p style="margin-bottom: 20px;">
+        <a href="{{ gazette_link }}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Acessar Diário Oficial de {{ publish_date }}
+        </a>
+    </p>
     <p>Foram encontradas {{ count }} novas notificações para o Diário Oficial do dia {{ publish_date }} para os termos:</p>
     <ul>
         {% for term in search_terms %}
@@ -18,8 +23,7 @@
         {% for highlight in highlights %}
         <li>
             <strong>Página {{ highlight.page }}:</strong><br>
-            {{ highlight.content }}<br>
-            <a href="{{ highlight.page_url }}">Ver página</a>
+            {{ highlight.content }}
         </li>
         {% endfor %}
     </ul>

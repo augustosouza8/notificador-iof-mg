@@ -24,13 +24,23 @@ class Mailer:
         Args:
             app: Instância do Flask app (opcional, pode usar current_app)
         """
-        self.mail = Mail()
-        if app:
-            self.mail.init_app(app)
+        self.app = app
+        self._mail = None
     
-    def init_app(self, app):
-        """Inicializa mailer com app Flask."""
-        self.mail.init_app(app)
+    def _get_mail(self):
+        """Obtém a instância do Mail, usando a já inicializada no app se disponível."""
+        if self._mail is None:
+            from flask import has_app_context, current_app
+            app_to_use = self.app if self.app else (current_app if has_app_context() else None)
+            
+            if app_to_use:
+                # Usar a instância já inicializada do mail no app
+                from app.extensions import mail
+                self._mail = mail
+            else:
+                raise RuntimeError("Mailer não inicializado. É necessário um contexto de aplicação Flask.")
+        
+        return self._mail
     
     def send(self, *emails: Email) -> None:
         """
@@ -42,13 +52,7 @@ class Mailer:
         Raises:
             RuntimeError: Se houver erro ao enviar
         """
-        if not self.mail:
-            # Tentar usar current_app
-            from flask import has_app_context, current_app
-            if has_app_context():
-                self.mail = Mail(current_app)
-            else:
-                raise RuntimeError("Mailer não inicializado. Chame init_app() ou passe app no construtor.")
+        mail = self._get_mail()
         
         messages = []
         for email in emails:
@@ -61,7 +65,7 @@ class Mailer:
             messages.append(msg)
         
         try:
-            with self.mail.connect() as conn:
+            with mail.connect() as conn:
                 for msg in messages:
                     conn.send(msg)
         except Exception as e:

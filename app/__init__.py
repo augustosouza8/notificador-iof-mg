@@ -37,5 +37,9 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(search_config.bp)
     app.register_blueprint(features.bp)
     
+    # Registrar blueprint web (HTML)
+    from app.web import routes as web_routes
+    app.register_blueprint(web_routes.bp)
+    
     return app
 

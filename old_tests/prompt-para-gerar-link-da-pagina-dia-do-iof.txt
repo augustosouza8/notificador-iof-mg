@@ -1,0 +1,71 @@
+Correção de Lógica de Links e Implementação de Deep Linking por Página - Jornal Minas Gerais
+1. Problema Identificado
+O sistema está gerando links de páginas baseados em uma estrutura legada que não é mais suportada pelo site da Imprensa Oficial de Minas Gerais: 
+
+Link Incorreto (Obsoleto): .../index.php?dataJornal=2026-01-14&pagina=53
+
+
+Comportamento Esperado: O link deve carregar o estado da aplicação via parâmetro ?dados=, garantindo que o usuário seja levado diretamente à edição e página corretas. 
+
+2. Nova Especificação Técnica da URL
+Para acessar uma página específica de um caderno específico, o objeto JSON codificado no parâmetro ?dados= deve seguir esta estrutura expandida: 
+
+JSON
+
+{
+  "dataPublicacaoSelecionada": "YYYY-MM-DDT03:00:00.000Z",
+  "idCadernoEdicaoSelecionado": 326074,
+  "paginaSelecionada": 53
+}
+Requisitos de Formatação:
+
+dataPublicacaoSelecionada: Data no formato ISO 8601 com sufixo obrigatório T03:00:00.000Z. 
+
+idCadernoEdicaoSelecionado: ID numérico interno da edição (ex: 326074).
+
+paginaSelecionada: Número inteiro da página desejada.
+
+
+URL Encoding: O JSON deve ser convertido para string e passar por urlencode. 
+
+3. Implementação Requerida em Python
+O Agent deve substituir a lógica antiga pela função abaixo ou integrá-la ao serviço de geração de alertas: 
+
+Python
+
+import urllib.parse
+import json
+from datetime import datetime
+
+def generate_gazette_page_link(target_date, page_number, notebook_id=326074):
+    """
+    Gera o link profundo para uma página específica de uma edição do Diário Oficial.
+    Default notebook_id (Executivo) pode ser ajustado conforme a edição.
+    """
+    date_str = target_date.strftime("%Y-%m-%d")
+    
+    # Montagem do dicionário de estado da aplicação
+    payload = {
+        "dataPublicacaoSelecionada": f"{date_str}T03:00:00.000Z",
+        "idCadernoEdicaoSelecionado": notebook_id,
+        "paginaSelecionada": page_number
+    }
+    
+    # Conversão para JSON compactado (sem espaços) e URL Encoding
+    json_payload = json.dumps(payload, separators=(',', ':'))
+    encoded_payload = urllib.parse.quote(json_payload)
+    
+    base_url = "https://www.jornalminasgerais.mg.gov.br/edicao-do-dia?dados="
+    return base_url + encoded_payload
+4. Fluxo de Trabalho do Agent
+
+Refatoração: Localizar onde os links index.php estão sendo gerados e substituir pela nova lógica de payload JSON. 
+
+
+Persistência: Garantir que o link gerado no dia do alerta mantenha o notebook_id e a data corretos para consulta posterior. 
+
+
+Template de E-mail: Atualizar o botão de ação no template HTML para utilizar o link gerado por esta nova função. 
+
+5. Exemplo de Resultado Esperado
+Para a Página 53 da edição de 14/01/2026, o link deve ser exatamente:  https://www.jornalminasgerais.mg.gov.br/edicao-do-dia?dados=%7B%22dataPublicacaoSelecionada%22%3A%222026-01-14T03%3A00%3A00.000Z%22%2C%22idCadernoEdicaoSelecionado%22%3A326074%2C%22paginaSelecionada%22%3A53%7D

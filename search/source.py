@@ -1,11 +1,12 @@
 """Motor de busca SQLite FTS5 para documentos do Diário Oficial."""
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 from pathlib import Path
 from typing import List
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 
 class Trigger(str, Enum):
@@ -50,22 +51,36 @@ class Pagina:
     data_publicacao: date
 
 
-def pagina_url(publish_date: date, page_num: int) -> str:
+def pagina_url(publish_date: date, page_num: int, notebook_id: int = 326074) -> str:
     """
-    Gera URL para uma página do Diário Oficial.
+    Gera o link profundo para uma página específica de uma edição do Diário Oficial.
+    
+    O link utiliza o novo formato com parâmetro ?dados= contendo um JSON codificado
+    que carrega o estado da aplicação diretamente na página correta.
     
     Args:
         publish_date: Data de publicação
         page_num: Número da página
+        notebook_id: ID numérico interno da edição (padrão: 326074 para Executivo)
         
     Returns:
-        URL da página
+        URL da página no formato: https://www.jornalminasgerais.mg.gov.br/edicao-do-dia?dados=...
     """
-    params = urlencode({
-        'dataJornal': publish_date.strftime('%Y-%m-%d'),
-        'pagina': str(page_num)
-    })
-    return f"https://www.jornalminasgerais.mg.gov.br/index.php?{params}"
+    date_str = publish_date.strftime("%Y-%m-%d")
+    
+    # Montagem do dicionário de estado da aplicação
+    payload = {
+        "dataPublicacaoSelecionada": f"{date_str}T03:00:00.000Z",
+        "idCadernoEdicaoSelecionado": notebook_id,
+        "paginaSelecionada": page_num
+    }
+    
+    # Conversão para JSON compactado (sem espaços) e URL Encoding
+    json_payload = json.dumps(payload, separators=(',', ':'))
+    encoded_payload = quote(json_payload)
+    
+    base_url = "https://www.jornalminasgerais.mg.gov.br/edicao-do-dia?dados="
+    return base_url + encoded_payload
 
 
 class SearchSource:
