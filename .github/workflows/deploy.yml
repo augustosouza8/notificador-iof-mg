@@ -1,11 +1,13 @@
-name: Deploy to Azure Web App
+name: Deploy to Azure Web App (Container)
 
 on:
   push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:  # Permite execução manual
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 env:
   AZURE_WEBAPP_NAME: ${{ secrets.AZURE_WEB_APP_NAME }}
@@ -16,45 +18,40 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Login no Azure
-        uses: azure/login@v1
+      - name: Login no Azure (OIDC)
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Login no Azure Container Registry
-        run: |
-          az acr login --name ${{ env.AZURE_REGISTRY_NAME }}
+      - name: Login no ACR
+        run: az acr login --name ${{ env.AZURE_REGISTRY_NAME }}
 
-      - name: Build e push imagem Docker
+      - name: Build e push imagem Docker (tag = SHA do commit)
         run: |
-          # Build da imagem
-          docker build -t ${{ env.AZURE_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-          docker build -t ${{ env.AZURE_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest .
-          
-          # Push para ACR
-          docker push ${{ env.AZURE_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ env.AZURE_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          IMAGE="${{ env.AZURE_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Atualizar Web App com nova imagem
+      - name: Atualizar Web App (linuxFxVersion -> imagem SHA)
         run: |
-          az webapp config container set \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --docker-custom-image-name ${{ env.AZURE_REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest \
-            --docker-registry-server-url https://${{ env.AZURE_REGISTRY_NAME }}.azurecr.io
+          az resource update \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+            --resource-type "Microsoft.Web/sites" \
+            --set "properties.siteConfig.linuxFxVersion=DOCKER|${{ env.IMAGE }}"
 
       - name: Reiniciar Web App
-        run: |
-          az webapp restart \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+        run: az webapp restart --name "${{ env.AZURE_WEBAPP_NAME }}" --resource-group "${{ env.AZURE_RESOURCE_GROUP }}"
 
       - name: Verificar deploy
         run: |
-          echo "Deploy concluído! Aplicação disponível em:"
+          echo "Deploy concluído!"
           echo "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
