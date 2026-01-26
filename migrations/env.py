@@ -1,59 +1,57 @@
-"""Alembic environment configuration."""
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
+
+"""Alembic environment configuration.
+
+This env.py avoids passing a URL containing percent-encoded characters (e.g. %40)
+through Python's configparser via Alembic Config.set_main_option(), which can
+raise interpolation errors. Instead, it reads the SQLALCHEMY_DATABASE_URI from
+the Flask app config and passes it directly to SQLAlchemy/Alembic.
+"""
+
+from __future__ import annotations
+
 import os
 import sys
+from logging.config import fileConfig
 
-# Adicionar diretório raiz ao path
+from alembic import context
+from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
+
+# Add repository root to sys.path so imports work when Alembic runs
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-# Importar modelos e configuração
-from app import create_app
-from app.extensions import db
-from app.models.search_config import SearchConfig, SearchTerm
+from app import create_app  # noqa: E402
+from app.extensions import db  # noqa: E402
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Alembic Config object, which provides access to values within alembic.ini
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Importar configuração do Flask
+# Build Flask app and read database URL from the same config used by the app.
 app = create_app()
 with app.app_context():
-    # Obter URL do banco da configuração do Flask
-    database_url = app.config.get('SQLALCHEMY_DATABASE_URI')
-    if database_url:
-        config.set_main_option('sqlalchemy.url', database_url)
+    DATABASE_URL: str | None = app.config.get("SQLALCHEMY_DATABASE_URI")
 
-# add your model's MetaData object here
-# for 'autogenerate' support
+# Fallback to alembic.ini only if Flask didn't provide a URL.
+if not DATABASE_URL:
+    DATABASE_URL = config.get_main_option("sqlalchemy.url")
+
+# Target metadata for 'autogenerate' support
 target_metadata = db.metadata
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
+    In offline mode we configure Alembic with just the URL.
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = DATABASE_URL
+    if not url:
+        raise RuntimeError("DATABASE_URL is not configured for Alembic migrations")
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -68,40 +66,22 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
+    In online mode we create an Engine and associate a connection with Alembic.
     """
-    # Usar a URL do banco configurada no Flask app context
-    # Isso garante que usamos o mesmo banco que a aplicação
-    with app.app_context():
-        database_url = app.config.get('SQLALCHEMY_DATABASE_URI')
-        if database_url:
-            # Criar engine diretamente da URL
-            connectable = engine_from_config(
-                {'sqlalchemy.url': database_url},
-                prefix="sqlalchemy.",
-                poolclass=pool.NullPool,
-            )
-        else:
-            # Fallback para configuração padrão
-            connectable = engine_from_config(
-                config.get_section(config.config_ini_section, {}),
-                prefix="sqlalchemy.",
-                poolclass=pool.NullPool,
-            )
+    url = DATABASE_URL
+    if not url:
+        raise RuntimeError("DATABASE_URL is not configured for Alembic migrations")
 
-        with connectable.connect() as connection:
-            context.configure(
-                connection=connection, target_metadata=target_metadata
-            )
+    connectable = create_engine(url, poolclass=NullPool)
 
-            with context.begin_transaction():
-                context.run_migrations()
+    with connectable.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
+
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-
